@@ -5,6 +5,9 @@ use std::collections::HashMap;
 #[derive(Debug)]
 enum AccountingError {
     // Add variants here for account not found, account underfunded and account overfunded
+    AccountNotFound: String,
+    AccountUnderFunded: HashMap<String, u64>,
+    AccountOverFunded: HashMap<String, u64>,
 }
 
 /// A transaction type. Transactions should be able to rebuild a ledger's state
