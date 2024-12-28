@@ -18,6 +18,7 @@ pub enum Tx {
 #[derive(Debug)]
 struct Accounts {
     // Add a property `accounts` here
+    accounts: HashMap<String, u64>,
 }
 
 impl Accounts {
