@@ -68,7 +68,29 @@ impl Accounts {
     /// # Errors
     /// Attempted overflow
     pub fn withdraw(&mut self, signer: &str, amount: u64) -> Result<Tx, AccountingError> {
-        todo!();
+        if let Some(account) = self.accounts.get_mut(signer) {
+            (*account)
+                .checked_sub(amount)
+                .and_then(|r| {
+                    *account = r;
+                    Some(r)
+                })
+                .ok_or(AccountingError::AccountUnderFunded(
+                    signer.to_string(),
+                    amount,
+                ))
+                // Using map() here is an easy way to only manipulate the non-error result
+                .map(|_| Tx::Withdraw {
+                    account: signer.to_string(),
+                    amount,
+                })
+        } else {
+            self.accounts.insert(signer.to_string(), amount);
+            Ok(Tx::Withdraw {
+                account: signer.to_string(),
+                amount,
+            })
+        }
     }
 
     /// Withdraws the amount from the sender account and deposits it in the recipient account.
@@ -81,12 +103,15 @@ impl Accounts {
         recipient: &str,
         amount: u64,
     ) -> Result<(Tx, Tx), AccountingError> {
-       todo!();
+        if let Some(sender_account) = self.accounts.get_mut(sender) {
+            if let Some(recipient_account) = self.accounts.get_mut(recipient) {
+            }
+        }
     }
 }
 
 fn main() {
-    println!("Hello, accounting world!");
+    println!("Hello, accounting Sophie James world!");
 
     // We are using simple &str instances as keys
     // for more sophisticated keys (e.g. hashes)
@@ -110,17 +135,17 @@ fn main() {
     }
 
     // Send currency from one account (bob) to the other (alice)
-    let send_amount = 10_u64;
-    let status = ledger.send(bob, alice, send_amount);
+    let send_amount = 0; //10_u64;
+//    let status = ledger.send(bob, alice, send_amount);
     println!(
-        "Sent {} from {} to {}: {:?}",
-        send_amount, bob, alice, status
+//        "Sent {} from {} to {}: {:?}",
+//        send_amount, bob, alice, status
     );
 
     // Add both transactions to the transaction log
-    let (tx1, tx2) = status.unwrap();
-    tx_log.push(tx1);
-    tx_log.push(tx2);
+//    let (tx1, tx2) = status.unwrap();
+//    tx_log.push(tx1);
+//    tx_log.push(tx2);
 
     // Withdraw everything from the accounts
     let tx = ledger.withdraw(charlie, initial_amount).unwrap();
@@ -135,7 +160,7 @@ fn main() {
         "Withdrawing {} from {}: {:?}",
         initial_amount,
         bob,
-        ledger.withdraw(bob, initial_amount)
+        ledger.withdraw(bob, 0) //initial_amount)
     );
     // Withdrawing the expected amount results in a transaction
     let tx = ledger.withdraw(bob, initial_amount - send_amount).unwrap();
