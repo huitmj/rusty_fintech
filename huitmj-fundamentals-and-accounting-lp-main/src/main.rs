@@ -85,11 +85,7 @@ impl Accounts {
                     amount,
                 })
         } else {
-            self.accounts.insert(signer.to_string(), amount);
-            Ok(Tx::Withdraw {
-                account: signer.to_string(),
-                amount,
-            })
+            Err(AccountingError::AccountNotFound(signer.to_string()))
         }
     }
 
@@ -103,9 +99,25 @@ impl Accounts {
         recipient: &str,
         amount: u64,
     ) -> Result<(Tx, Tx), AccountingError> {
-        if let Some(sender_account) = self.accounts.get_mut(sender) {
-            if let Some(recipient_account) = self.accounts.get_mut(recipient) {
+        match self.accounts.get(sender) {
+            Some(amt) if self.accounts.contains_key(recipient) && *amt >= amount => {
+                // The ? operator is a built-in shorthand for
+                // if let Err(e) = my_func_call() { return Err(e); }
+                let tx_withdraw = self.withdraw(sender, amount)?;
+                self.deposit(recipient, amount)
+                    .map_err(|e| {
+                        // return the funds to the sender on error
+                        self.deposit(sender, amount).unwrap();
+                        e
+                    })
+                    .map(|tx_deposit| (tx_withdraw, tx_deposit))
             }
+            Some(amt) if self.accounts.contains_key(recipient) && *amt < amount => Err(
+                AccountingError::AccountUnderFunded(sender.to_owned(), amount),
+            ),
+            // The matching rules are evaluated from top to bottom and since all other cases where covered before, this rule means that the recipient's account wasn't found
+            Some(_) => Err(AccountingError::AccountNotFound(recipient.to_owned())),
+            None => Err(AccountingError::AccountNotFound(sender.to_string())),
         }
     }
 }
@@ -119,7 +131,7 @@ fn main() {
     let bob = "bob";
     let alice = "alice";
     let charlie = "charlie";
-    let initial_amount = 100;
+    let initial_amount = 9754860;
 
     // Creates the basic ledger and a tx log container
     let mut ledger = Accounts::new();
@@ -135,17 +147,17 @@ fn main() {
     }
 
     // Send currency from one account (bob) to the other (alice)
-    let send_amount = 0; //10_u64;
-//    let status = ledger.send(bob, alice, send_amount);
+    let send_amount = 1169749_u64;
+    let status = ledger.send(bob, alice, send_amount);
     println!(
-//        "Sent {} from {} to {}: {:?}",
-//        send_amount, bob, alice, status
+        "Sent {} from {} to {}: {:?}",
+       send_amount, bob, alice, status
     );
 
     // Add both transactions to the transaction log
-//    let (tx1, tx2) = status.unwrap();
-//    tx_log.push(tx1);
-//    tx_log.push(tx2);
+    let (tx1, tx2) = status.unwrap();
+    tx_log.push(tx1);
+    tx_log.push(tx2);
 
     // Withdraw everything from the accounts
     let tx = ledger.withdraw(charlie, initial_amount).unwrap();
@@ -160,7 +172,7 @@ fn main() {
         "Withdrawing {} from {}: {:?}",
         initial_amount,
         bob,
-        ledger.withdraw(bob, 0) //initial_amount)
+        ledger.withdraw(bob, initial_amount)
     );
     // Withdrawing the expected amount results in a transaction
     let tx = ledger.withdraw(bob, initial_amount - send_amount).unwrap();
